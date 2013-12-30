@@ -1,11 +1,25 @@
 //to use, simply call zIndexTree anywhere you would like to have it drawn
 
-function zIndexTree() {
+function zIndexTree(dontLogTree) {
 	var treeArray = createDocumentArray('body', '0');
-	logAll(treeArray, 0);
-	//add a visible break to help visualize seperate calls
-	console.log('-----------------------------------');
-	console.log('-----------------------------------');
+	sortTree(treeArray);
+	if(!dontLogTree) {
+		logAll(treeArray, 0);
+		//add a visible break to help visualize seperate calls
+		console.log('-----------------------------------');
+		console.log('-----------------------------------');
+	}
+
+	return treeArray;
+}
+
+//element1 and element2 should be the stacking context of ythe item you are looking for
+function compare(treeArray, element1, element2) {
+	var returnedElem1 = findInTree(treeArray, 'contextString', element1);
+	var returnedElem2 = findInTree(treeArray, 'contextString', element2);
+
+	console.log(returnedElem1.contextString + ' - ' +returnedElem1.stackingContext);
+	console.log(returnedElem2.contextString + ' - ' +returnedElem2.stackingContext);
 }
 
 function createDocumentArray(value, currentStackingContext){
@@ -60,18 +74,6 @@ function createContextString($object) {
 	return string;
 }
 
-function determineStackingContext($object) {
-	//check if the zCount variable exists, and if not, create it
-	//this is what we will refer to when stacking elements later
-	if( !window.zCount && window.zCount!=0 ) {
-		window.zCount = 0;
-	}
-
-
-
-}
-
-
 function writeTreeLine(indentCount, key, value) {
 	//create indents and marks to help show different branches in the tree
 	var indentMark = '';
@@ -91,8 +93,41 @@ function logAll(documentArray, indentStartCount) {
 	$.each(documentArray, function(key, value) {
 		if(value.contextString)
 			writeTreeLine(indentStartCount, key, value);
-		else {
+		else
 			logAll(value, indentStartCount + 3)
+	});
+}
+
+function sortTree(treeArray) {
+	$.each(treeArray, function(key, value) {
+		value.sort(function(a, b) {
+			if(a[0].stackingContext && b[0].stackingContext)
+				return a[0].stackingContext > b[0].stackingContext ? a : b;
+			else a[0].stackingContext ? a : b;
+		});
+		if(value.length > 1) {
+			for(i==0; i < value.length; i++) {
+				sortTree(value[i]);
+			}
 		}
 	});
+}
+
+function findInTree(treeArray, searchProperty, searchValue) {
+	var foundObject;
+	//search array
+	$.each(treeArray, function(key, value) {
+		if(value[0][searchProperty] === searchValue) {
+			foundObject = value[0];
+			//break out of the each function upon success
+			return false;
+		}
+		//if match is false, and array is longer than 1(to disclude the single item jquery objects, descend to into the next array down)
+		else if (value.length > 1) {
+			foundObject = findInTree(value, searchProperty, searchValue);
+			//break out of the each function upon success
+			if(foundObject) return false;
+		}
+	});
+	return foundObject;
 }
