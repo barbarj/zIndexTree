@@ -13,19 +13,67 @@ function zIndexTree(dontLogTree) {
 	return treeArray;
 }
 
-//element1 and element2 should be the stacking context of ythe item you are looking for
-function compare(treeArray, element1, element2) {
-	var returnedElem1 = findInTree(treeArray, 'contextString', element1);
-	var returnedElem2 = findInTree(treeArray, 'contextString', element2);
+//element1 and element2 should be the context string of the item you are looking for, in the order they appear in the DOM.
+function compare(treeArray, element0, element1) {
+	var returnedElem = [];
+	returnedElem[0] = findInTree(treeArray, 'contextString', element0);
+	returnedElem[1] = findInTree(treeArray, 'contextString', element1);
 
-	console.log(returnedElem1.contextString + ' - ' +returnedElem1.stackingContext);
-	console.log(returnedElem2.contextString + ' - ' +returnedElem2.stackingContext);
+	var onTop = whichIsOnTop(returnedElem[0], returnedElem[1]);
+
+	console.log(returnedElem[0].contextString + ' - ' +returnedElem[0].stackingContext);
+	console.log(returnedElem[1].contextString + ' - ' +returnedElem[1].stackingContext);
+	console.log('Sit\'s on top: ' + returnedElem[onTop].contextString);
 }
 
-function createDocumentArray(value, currentStackingContext){
+//given the two elements with defined stacking contexts, return the one that sits on top.
+function whichIsOnTop(object0, object1) {
+	var split = [];
+	split[0] = object0.stackingContext.split('.');
+	split[1] = object1.stackingContext.split('.');
+
+	//convert strings to numbers
+	$.each(split, function(key, value) {
+		$.each(value, function(key1, value1) {
+			split[key][key1] = parseInt(value1);
+		});
+	});
+
+	//get the longer of the two lengths
+	var splitLength = (split[0].length > split[1].length) ? split[0].length : split[1].length;
+
+	//cycle through the splits to find which one is on top
+	var i = 0;
+	var onTop;
+	while(i<splitLength) {
+		//if the current number of split 0 is higher, it sits on top, so set onTop to 0 and exit by setting i to splitLength
+		if(split[0][i] > split[1][i]) {
+			onTop = 0;
+			i = splitLength;
+		}
+		//if the split numbers are equal, and this is not the last number, iterate i to go to the next number
+		else if(split[0][i] == split[1][i] && i < splitLength-1)
+			i++;
+		//otherwise, if we've gone through all possible avenues, and they are equal, the one that is lower in the DOM, which should be the second provided argument, object1, sits on top, so return 1 and exit by setting i to splitLength
+		else {
+			onTop = 1;
+			i = splitLength;
+		}
+	}
+	console.log(split);
+	return onTop;
+}
+
+function createDocumentArray(value, currentStackingContext, currentDepth){
+	if(currentDepth == null)
+		currentDepth = 0;
+
 	//create a jquery object out of the element
 	var $elem = $(value);
 	$elem.contextString = createContextString($elem);
+
+	//set the depth property
+	$elem.depth = currentDepth;
 
 	//add the current stacking context, using a dot notation system
 	//i.e. 1.1.0
@@ -43,7 +91,7 @@ function createDocumentArray(value, currentStackingContext){
 		newArray.push($elem);
 		$elem.children().each(function(key, value) {
 			//cycle through children and add them to the tree
-			var arrayToAdd = createDocumentArray(value, currentStackingContext);
+			var arrayToAdd = createDocumentArray(value, currentStackingContext, currentDepth++);
 			//push returned array to new array
 			newArray.push(arrayToAdd);
 		});
